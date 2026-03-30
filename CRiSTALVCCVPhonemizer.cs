@@ -104,7 +104,7 @@ namespace OpenUtau.Plugins {
                         if (singer.TryGetMappedOto(vc, tone, out var oto)) {
                             result.Add(new Phoneme { phoneme = vc, position = -oto.Preutterance });
                         }
-                        
+
                         string cv = $"{current} {nextV}";
                         if (!singer.TryGetMappedOto(cv, tone, out _)) cv = $"{current}{nextV}";
                         if (!singer.TryGetMappedOto(cv, tone, out _)) cv = nextV;
