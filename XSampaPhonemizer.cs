@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenUtau.Api;
+using OpenUtau.Core.Ustx;
 
 namespace OpenUtau.Plugins {
     [Phonemizer("Portuguese X-SAMPA Phonemizer", "PT-BR X-SAMPA", "xiao")]
