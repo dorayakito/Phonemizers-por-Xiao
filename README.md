@@ -27,8 +27,8 @@ Aqui eu faço upload dos phonemizers que fiz e quero compartilhar com todos. C# 
 
 Além disso, este pacote inclui documentação técnica:
 
-- Guia Técnico do Phonemizer: Explicação detalhada da estrutura do código.
-- Introdução ao C#: O que é a linguagem e suas aplicações.
+- [Guia Técnico do Phonemizer: Explicação detalhada da estrutura do código.](https://github.com/dorayakito/Phonemizers-por-Xiao/blob/main/phonemizer_guide.md)
+- [Introdução ao C#: O que é a linguagem e suas aplicações.](https://github.com/dorayakito/Phonemizers-por-Xiao/blob/main/csharp_intro.md)
 
 ## Instalação
 
