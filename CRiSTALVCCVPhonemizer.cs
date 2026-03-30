@@ -4,14 +4,14 @@ using System.Linq;
 using OpenUtau.Api;
 
 namespace OpenUtau.Plugins {
-    [Phonemizer("Portuguese Eddie VCCV Phonemizer", "PT-BR EDDIE", "xiao")]
-    public class EddieVCCVPhonemizer : Phonemizer {
+    [Phonemizer("Portuguese CRiSTAL VCCV Phonemizer", "PT-BR CRiSTAL", "xiao")]
+    public class CRiSTALVCCVPhonemizer : Phonemizer {
         private readonly string[] vowels = { "a", "an", "ax", "e", "eh", "en", "i", "in", "o", "oh", "on", "u", "un" };
         private readonly string[] consonants = { "b", "ch", "d", "dj", "f", "g", "h", "j", "k", "l", "lh", "m", "n", "nh", "p", "r", "rr", "rw", "s", "sh", "t", "v", "w", "x", "y", "z" };
 
         private static readonly Dictionary<string, string> g2p = new Dictionary<string, string>();
 
-        static EddieVCCVPhonemizer() {
+        static CRiSTALVCCVPhonemizer() {
             var vBase = new Dictionary<string, string> {
                 { "a", "a" }, { "á", "a" }, { "à", "a" }, { "â", "ax" }, { "ã", "an" },
                 { "e", "e" }, { "é", "eh" }, { "ê", "e" },
