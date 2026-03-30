@@ -6,6 +6,9 @@ using OpenUtau.Api;
 namespace OpenUtau.Plugins {
     [Phonemizer("Portuguese IPEA Phonemizer", "PT-BR IPEA", "ly ft. xiao")]
     public class IPEAPhonemizer : Phonemizer {
+        protected USinger singer;
+
+        public override void SetSinger(USinger singer) => this.singer = singer;
 
         private readonly string[] vowels = {
             "Ao", "am", "em", "im", "om", "um",

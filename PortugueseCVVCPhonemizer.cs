@@ -6,6 +6,10 @@ using OpenUtau.Api;
 namespace OpenUtau.Plugins {
     [Phonemizer("Portuguese CVVC BRAPA Phonemizer", "PT-BR CVVC", "xiao")]
     public class PortugueseCVVCPhonemizer : Phonemizer {
+        protected USinger singer;
+
+        public override void SetSinger(USinger singer) => this.singer = singer;
+
         private readonly string[] vowels = { "a", "ao", "ah", "ahn", "ax", "an", "e", "en", "eh", "ehn", "ae", "aen", "i", "in", "i0", "o", "on", "oh", "ohn", "u", "un", "u0", "rh", "y", "w" };
         private readonly string[] consonants = { "b", "bv", "ch", "d", "dj", "f", "g", "gv", "h", "hr", "j", "k", "l", "lh", "l0", "m", "n", "ng", "nh", "p", "r", "rr", "rw", "s", "sh", "t", "v", "x", "z" };
 

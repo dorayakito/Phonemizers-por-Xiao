@@ -6,6 +6,10 @@ using OpenUtau.Api;
 namespace OpenUtau.Plugins {
     [Phonemizer("Portuguese X-SAMPA Phonemizer", "PT-BR X-SAMPA", "xiao")]
     public class XSampaPhonemizer : Phonemizer {
+        protected USinger singer;
+
+        public override void SetSinger(USinger singer) => this.singer = singer;
+
         private readonly string[] vowels = { "a", "e", "E", "i", "o", "O", "u", "a~", "e~", "i~", "o~", "u~", "j", "w" };
         private readonly string[] consonants = { "p", "b", "t", "d", "k", "g", "f", "v", "s", "z", "S", "Z", "m", "n", "J", "l", "L", "r", "R" };
 

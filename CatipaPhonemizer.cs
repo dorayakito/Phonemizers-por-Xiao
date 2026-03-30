@@ -6,6 +6,10 @@ using OpenUtau.Api;
 namespace OpenUtau.Plugins {
     [Phonemizer("Portuguese CATIPA Phonemizer", "PT-BR CATIPA", "xiao")]
     public class CatipaPhonemizer : Phonemizer {
+        protected USinger singer;
+
+        public override void SetSinger(USinger singer) => this.singer = singer;
+
         private readonly string[] vowels = { "a", "e", "i", "o", "u", "a'", "e'", "i'", "o'", "u'", "a~", "e~", "i~", "o~", "u~" };
         private readonly string[] consonants = { "b", "d", "dj", "f", "g", "h", "j", "k", "l", "lh", "m", "n", "nh", "p", "r", "rr", "rrr", "wr", "s", "t", "tch", "v", "w", "x", "y", "z" };
 

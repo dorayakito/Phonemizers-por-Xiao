@@ -6,6 +6,10 @@ using OpenUtau.Api;
 namespace OpenUtau.Plugins {
     [Phonemizer("Portuguese CRiSTAL VCCV Phonemizer", "PT-BR CRiSTAL", "xiao")]
     public class CRiSTALVCCVPhonemizer : Phonemizer {
+        protected USinger singer;
+
+        public override void SetSinger(USinger singer) => this.singer = singer;
+
         private readonly string[] vowels = { "a", "an", "ax", "e", "eh", "en", "i", "in", "o", "oh", "on", "u", "un" };
         private readonly string[] consonants = { "b", "ch", "d", "dj", "f", "g", "h", "j", "k", "l", "lh", "m", "n", "nh", "p", "r", "rr", "rw", "s", "sh", "t", "v", "w", "x", "y", "z" };
 

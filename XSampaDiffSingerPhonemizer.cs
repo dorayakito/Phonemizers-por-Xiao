@@ -6,8 +6,12 @@ using OpenUtau.Api;
 namespace OpenUtau.Plugins {
     [Phonemizer("Portuguese X-SAMPA DiffSinger Phonemizer", "DIFF XS", "xiao")]
     public class XSampaDiffSingerPhonemizer : Phonemizer {
-        private static readonly Dictionary<string, string> g2p = new Dictionary<string, string>();
+        protected USinger singer;
 
+        public override void SetSinger(USinger singer) => this.singer = singer;
+
+        private static readonly Dictionary<string, string> g2p = new Dictionary<string, string>();
+                                                                                                                    
         static XSampaDiffSingerPhonemizer() {
             var vBase = new Dictionary<string, string> {
                 { "a", "a" }, { "á", "a" }, { "à", "a" }, { "ã", "a~" }, { "â", "6" },
@@ -51,9 +55,9 @@ namespace OpenUtau.Plugins {
 
             string phonemeStr = g2p.ContainsKey(lyric) ? g2p[lyric] : lyric;
             var phonemeList = phonemeStr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            
-            return new Result { 
-                phonemes = phonemeList.Select(p => new Phoneme { phoneme = p }).ToArray() 
+
+            return new Result {
+                phonemes = phonemeList.Select(p => new Phoneme { phoneme = p }).ToArray()
             };
         }
     }

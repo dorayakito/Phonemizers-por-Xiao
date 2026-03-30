@@ -6,6 +6,10 @@ using OpenUtau.Api;
 namespace OpenUtau.Plugins {
     [Phonemizer("Portuguese CV BRAPA Phonemizer", "PT-BR CV", "xiao")]
     public class PortugueseCVPhonemizer : Phonemizer {
+        protected USinger singer;
+
+        public override void SetSinger(USinger singer) => this.singer = singer;
+
         private static readonly Dictionary<string, string> lyricToPhoneme = new Dictionary<string, string>();
 
         static PortugueseCVPhonemizer() {

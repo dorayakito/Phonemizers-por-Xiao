@@ -6,6 +6,10 @@ using OpenUtau.Api;
 namespace OpenUtau.Plugins {
     [Phonemizer("Portuguese NUBLADO Phonemizer", "PT-BR NUBLADO", "xiao")]
     public class NubladoPhonemizer : Phonemizer {
+        protected USinger singer;
+
+        public override void SetSinger(USinger singer) => this.singer = singer;
+
         private readonly string[] vowels = { "a", "e", "i", "o", "u", "3", "0", "a]", "e]", "i]", "o]", "u]" };
         private readonly string[] consonants = { "w", "r", "t", "y", "p", "s", "d", "f", "g", "h", "j", "k", "l", "z", "x", "v", "b", "n", "m", "ch", "Dd" };
 
