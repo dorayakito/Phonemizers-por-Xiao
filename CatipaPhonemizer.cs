@@ -4,42 +4,41 @@ using System.Linq;
 using OpenUtau.Api;
 
 namespace OpenUtau.Plugins {
-    [Phonemizer("Portuguese CVVC BRAPA Phonemizer", "PT-BR CVVC", "xiao")]
-    public class PortugueseCVVCPhonemizer : Phonemizer {
-        private readonly string[] vowels = { "a", "ao", "ah", "ahn", "ax", "an", "e", "en", "eh", "ehn", "ae", "aen", "i", "in", "i0", "o", "on", "oh", "ohn", "u", "un", "u0", "rh", "y", "w" };
-        private readonly string[] consonants = { "b", "bv", "ch", "d", "dj", "f", "g", "gv", "h", "hr", "j", "k", "l", "lh", "l0", "m", "n", "ng", "nh", "p", "r", "rr", "rw", "s", "sh", "t", "v", "x", "z" };
+    [Phonemizer("Portuguese CATIPA Phonemizer", "PT-BR CATIPA", "xiao")]
+    public class CatipaPhonemizer : Phonemizer {
+        private readonly string[] vowels = { "a", "e", "i", "o", "u", "a'", "e'", "i'", "o'", "u'", "a~", "e~", "i~", "o~", "u~" };
+        private readonly string[] consonants = { "b", "d", "dj", "f", "g", "h", "j", "k", "l", "lh", "m", "n", "nh", "p", "r", "rr", "rrr", "wr", "s", "t", "tch", "v", "w", "x", "y", "z" };
 
-        private static readonly Dictionary<string, string> lyricToPhoneme = new Dictionary<string, string>();
+        private static readonly Dictionary<string, string> g2p = new Dictionary<string, string>();
 
-        static PortugueseCVVCPhonemizer() {
+        static CatipaPhonemizer() {
             var vBase = new Dictionary<string, string> {
-                { "a", "a" }, { "á", "a" }, { "à", "a" }, { "â", "ax" }, { "ã", "an" },
-                { "e", "e" }, { "é", "eh" }, { "ê", "e" },
+                { "a", "a" }, { "á", "a" }, { "à", "a" }, { "ã", "a~" }, { "â", "a'" },
+                { "e", "e" }, { "é", "e'" }, { "ê", "e" },
                 { "i", "i" }, { "í", "i" },
-                { "o", "o" }, { "ó", "oh" }, { "ô", "o" }, { "õ", "on" },
+                { "o", "o" }, { "ó", "o'" }, { "ô", "o" }, { "õ", "o~" },
                 { "u", "u" }, { "ú", "u" }
             };
 
-            foreach (var v in vBase) lyricToPhoneme[v.Key] = v.Value;
+            foreach (var v in vBase) g2p[v.Key] = v.Value;
 
-            string[] cBase = { "b", "d", "f", "j", "k", "l", "m", "n", "p", "s", "t", "v", "z" };
+            string[] cBase = { "b", "d", "f", "j", "k", "l", "m", "n", "p", "s", "t", "v", "x", "z" };
 
             foreach (var c in cBase) {
                 foreach (var v in vBase) {
                     string cTarget = c;
-                    if (c == "d" && v.Key == "i") cTarget = "dj";
-                    if (c == "t" && v.Key == "i") cTarget = "ch";
-                    lyricToPhoneme[c + v.Key] = cTarget + v.Value;
+                    string vTarget = v.Value;
+                    if (c == "d" && v.Key == "i") { cTarget = "dj"; }
+                    if (c == "t" && v.Key == "i") { cTarget = "tch"; }
+                    g2p[c + v.Key] = cTarget + " " + vTarget;
                 }
             }
 
             foreach (var v in vBase) {
-                lyricToPhoneme["r" + v.Key] = "Rr" + v.Value;
-                lyricToPhoneme["c" + v.Key] = (new[] { "e", "é", "ê", "i", "í" }.Contains(v.Key) ? "s" : "k") + v.Value;
-                lyricToPhoneme["g" + v.Key] = (new[] { "e", "é", "ê", "i", "í" }.Contains(v.Key) ? "j" : "g") + v.Value;
-                lyricToPhoneme["x" + v.Key] = "sh" + v.Value;
-                lyricToPhoneme["h" + v.Key] = v.Value;
-                lyricToPhoneme["q" + v.Key] = "k" + v.Value;
+                g2p["r" + v.Key] = "rr " + v.Value;
+                g2p["c" + v.Key] = (new[] { "e", "é", "ê", "i", "í" }.Contains(v.Key) ? "s" : "k") + " " + v.Value;
+                g2p["g" + v.Key] = (new[] { "e", "é", "ê", "i", "í" }.Contains(v.Key) ? "j" : "g") + " " + v.Value;
+                g2p["h" + v.Key] = v.Value;
             }
         }
 
@@ -49,14 +48,14 @@ namespace OpenUtau.Plugins {
                 lyric = prevNeighbour.Value.lyric.ToLower();
             }
 
-            string phoneme = lyricToPhoneme.ContainsKey(lyric) ? lyricToPhoneme[lyric] : lyric;
+            string phoneme = g2p.ContainsKey(lyric) ? g2p[lyric] : lyric;
             string c = string.Empty;
             string v = phoneme;
 
             foreach (var con in consonants.OrderByDescending(x => x.Length)) {
                 if (phoneme.StartsWith(con)) {
                     c = con;
-                    v = phoneme.Substring(con.Length);
+                    v = phoneme.Substring(con.Length).Trim();
                     break;
                 }
             }
@@ -66,14 +65,11 @@ namespace OpenUtau.Plugins {
 
             if (prevNeighbour == null) {
                 var startAlias = $"- {c}{v}";
-                if (singer.TryGetMappedOto(startAlias, tone, out _)) {
-                    phonemes.Add(new Phoneme { phoneme = startAlias });
-                } else {
-                    phonemes.Add(new Phoneme { phoneme = c + v });
-                }
+                if (!singer.TryGetMappedOto(startAlias, tone, out _)) startAlias = c + v;
+                phonemes.Add(new Phoneme { phoneme = startAlias });
             } else {
                 var prevLyric = prevNeighbour.Value.lyric.ToLower();
-                var prevPhoneme = lyricToPhoneme.ContainsKey(prevLyric) ? lyricToPhoneme[prevLyric] : prevLyric;
+                var prevPhoneme = g2p.ContainsKey(prevLyric) ? g2p[prevLyric] : prevLyric;
                 
                 string prevV = string.Empty;
                 foreach (var vv in vowels.OrderByDescending(x => x.Length)) {
