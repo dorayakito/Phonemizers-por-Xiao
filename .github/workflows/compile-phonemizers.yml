@@ -26,12 +26,26 @@ jobs:
       - name: Clone OpenUtau
         run: git clone --depth=1 https://github.com/stakira/OpenUtau.git openutau
 
-      - name: Build OpenUtau Api
-        run: dotnet build openutau/OpenUtau.Core/OpenUtau.Core.csproj -c Release --nologo -v quiet
+      - name: Build OpenUtau Dependencies
+        run: |
+          dotnet build openutau/OpenUtau.Api/OpenUtau.Api.csproj -c Release --nologo -v quiet
+          dotnet build openutau/OpenUtau.Core/OpenUtau.Core.csproj -c Release --nologo -v quiet
 
       - name: Build Plugins
         run: |
           mkdir -p "Phonemizers compilados"
+          
+          # Detect actual DLL paths to handle potential TargetFramework variations (net6.0 vs net7.0/8.0)
+          API_PATH=$(find openutau/OpenUtau.Api/bin/Release -name "OpenUtau.Api.dll" | head -n 1)
+          CORE_PATH=$(find openutau/OpenUtau.Core/bin/Release -name "OpenUtau.Core.dll" | head -n 1)
+          
+          echo "Found Api at: $API_PATH"
+          echo "Found Core at: $CORE_PATH"
+          
+          # Get absolute paths for the .csproj references
+          API_ABS=$(readlink -f "$API_PATH")
+          CORE_ABS=$(readlink -f "$CORE_PATH")
+
           for file in *.cs; do
             name=$(basename "$file" .cs)
             echo "==> Building $name..."
@@ -48,10 +62,10 @@ jobs:
             <ItemGroup>
               <Compile Include="../../$file" />
               <Reference Include="OpenUtau.Api">
-                <HintPath>../../openutau/OpenUtau.Core/bin/Release/net6.0/OpenUtau.Api.dll</HintPath>
+                <HintPath>$API_ABS</HintPath>
               </Reference>
               <Reference Include="OpenUtau.Core">
-                <HintPath>../../openutau/OpenUtau.Core/bin/Release/net6.0/OpenUtau.Core.dll</HintPath>
+                <HintPath>$CORE_ABS</HintPath>
               </Reference>
             </ItemGroup>
           </Project>
