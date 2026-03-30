@@ -11,57 +11,60 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-net@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 6.0.x
 
       - name: Clone OpenUtau
-        run: git clone https://github.com/stakira/OpenUtau.git openutau
+        run: git clone --depth=1 https://github.com/stakira/OpenUtau.git openutau
 
-      - name: Build OpenUtau Core and Api
-        run: |
-          dotnet build openutau/OpenUtau.Core/OpenUtau.Core.csproj -c Release
-          dotnet build openutau/OpenUtau.Api/OpenUtau.Api.csproj -c Release
+      - name: Build OpenUtau Api
+        run: dotnet build openutau/OpenUtau.Core/OpenUtau.Core.csproj -c Release --nologo -v quiet
 
       - name: Build Plugins
         run: |
           mkdir -p "Phonemizers compilados"
           for file in *.cs; do
             name=$(basename "$file" .cs)
-            echo "Building $name..."
-            cat <<EOF > "$name.csproj"
-            <Project Sdk="Microsoft.NET.Sdk">
-              <PropertyGroup>
-                <TargetFramework>netstandard2.1</TargetFramework>
-                <AssemblyName>$name</AssemblyName>
-                <EnableDefaultItems>false</EnableDefaultItems>
-              </PropertyGroup>
-              <ItemGroup>
-                <Compile Include="$file" />
-                <Reference Include="OpenUtau.Api">
-                  <HintPath>openutau/OpenUtau.Api/bin/Release/netstandard2.1/OpenUtau.Api.dll</HintPath>
-                </Reference>
-                <Reference Include="OpenUtau.Core">
-                  <HintPath>openutau/OpenUtau.Core/bin/Release/net6.0/OpenUtau.Core.dll</HintPath>
-                </Reference>
-              </ItemGroup>
-            </Project>
-            EOF
-            dotnet build "$name.csproj" -c Release
-            cp "bin/Release/netstandard2.1/$name.dll" "Phonemizers compilados/"
+            echo "==> Building $name..."
+            outdir="build_output/$name"
+            mkdir -p "$outdir"
+
+            cat > "$outdir/$name.csproj" <<EOF
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <TargetFramework>netstandard2.1</TargetFramework>
+              <AssemblyName>$name</AssemblyName>
+              <EnableDefaultItems>false</EnableDefaultItems>
+            </PropertyGroup>
+            <ItemGroup>
+              <Compile Include="../../$file" />
+              <Reference Include="OpenUtau.Api">
+                <HintPath>../../openutau/OpenUtau.Core/bin/Release/net6.0/OpenUtau.Api.dll</HintPath>
+              </Reference>
+              <Reference Include="OpenUtau.Core">
+                <HintPath>../../openutau/OpenUtau.Core/bin/Release/net6.0/OpenUtau.Core.dll</HintPath>
+              </Reference>
+            </ItemGroup>
+          </Project>
+          EOF
+
+            dotnet build "$outdir/$name.csproj" -c Release --nologo -v quiet
+            cp "$outdir/bin/Release/netstandard2.1/$name.dll" "Phonemizers compilados/"
           done
 
       - name: Commit and Push
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add "Phonemizers compilados/*.dll"
-          # Deleta o arquivo antigo caso exista
-          git rm -f "Phonemizers compilados/Phonemizers.dll" || true
-          git commit -m "chore: auto-compile separate phonemizers to DLL" || exit 0
+          git add "Phonemizers compilados/"
+          git commit -m "chore: auto-compile phonemizers [skip ci]" || echo "Nenhuma alteração para commitar."
           git push
