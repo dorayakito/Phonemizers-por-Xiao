@@ -28,38 +28,40 @@ jobs:
           dotnet build openutau/OpenUtau.Core/OpenUtau.Core.csproj -c Release
           dotnet build openutau/OpenUtau.Api/OpenUtau.Api.csproj -c Release
 
-      - name: Create Plugin Project
-        run: |
-          cat <<EOF > BuildPlugins.csproj
-          <Project Sdk="Microsoft.NET.Sdk">
-            <PropertyGroup>
-              <TargetFramework>netstandard2.1</TargetFramework>
-              <AssemblyName>Phonemizers</AssemblyName>
-              <IncludeBuildOutput>true</IncludeBuildOutput>
-            </PropertyGroup>
-            <ItemGroup>
-              <Reference Include="OpenUtau.Api">
-                <HintPath>openutau/OpenUtau.Api/bin/Release/netstandard2.1/OpenUtau.Api.dll</HintPath>
-              </Reference>
-              <Reference Include="OpenUtau.Core">
-                <HintPath>openutau/OpenUtau.Core/bin/Release/net6.0/OpenUtau.Core.dll</HintPath>
-              </Reference>
-            </ItemGroup>
-          </Project>
-          EOF
-
       - name: Build Plugins
-        run: dotnet build BuildPlugins.csproj -c Release
-
-      - name: Organize DLLs
         run: |
           mkdir -p "Phonemizers compilados"
-          cp bin/Release/netstandard2.1/Phonemizers.dll "Phonemizers compilados/"
+          for file in *.cs; do
+            name=$(basename "$file" .cs)
+            echo "Building $name..."
+            cat <<EOF > "$name.csproj"
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>netstandard2.1</TargetFramework>
+                <AssemblyName>$name</AssemblyName>
+                <EnableDefaultItems>false</EnableDefaultItems>
+              </PropertyGroup>
+              <ItemGroup>
+                <Compile Include="$file" />
+                <Reference Include="OpenUtau.Api">
+                  <HintPath>openutau/OpenUtau.Api/bin/Release/netstandard2.1/OpenUtau.Api.dll</HintPath>
+                </Reference>
+                <Reference Include="OpenUtau.Core">
+                  <HintPath>openutau/OpenUtau.Core/bin/Release/net6.0/OpenUtau.Core.dll</HintPath>
+                </Reference>
+              </ItemGroup>
+            </Project>
+            EOF
+            dotnet build "$name.csproj" -c Release
+            cp "bin/Release/netstandard2.1/$name.dll" "Phonemizers compilados/"
+          done
 
       - name: Commit and Push
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add "Phonemizers compilados/Phonemizers.dll"
-          git commit -m "chore: auto-compile phonemizers to DLL" || exit 0
+          git add "Phonemizers compilados/*.dll"
+          # Deleta o arquivo antigo caso exista
+          git rm -f "Phonemizers compilados/Phonemizers.dll" || true
+          git commit -m "chore: auto-compile separate phonemizers to DLL" || exit 0
           git push
