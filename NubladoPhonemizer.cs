@@ -92,7 +92,7 @@ namespace OpenUtau.Plugins {
                 if (!string.IsNullOrEmpty(c)) {
                     var vcAlias = $"({prevV}{c})";
                     if (singer.TryGetMappedOto(vcAlias, tone, out var oto)) {
-                        phonemes.Add(new Phoneme { phoneme = vcAlias, position = -oto.Preutterance });
+                        phonemes.Add(new Phoneme { phoneme = vcAlias, position = -MsToTick(oto.Preutter) });
                     }
                 }
 
