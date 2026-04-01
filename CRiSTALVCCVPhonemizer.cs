@@ -2,17 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenUtau.Api;
+using OpenUtau.Core.G2p;
 using OpenUtau.Core.Ustx;
 
-namespace OpenUtau.Plugins {
+namespace OpenUtau.Plugin.Builtin {
     [Phonemizer("Portuguese CRiSTAL VCCV Phonemizer", "PT-BR CRiSTAL", "xiao")]
-    public class CRiSTALVCCVPhonemizer : Phonemizer {
-        protected USinger singer;
-
-        public override void SetSinger(USinger singer) => this.singer = singer;
-
+    public class CRiSTALVCCVPhonemizer : SyllableBasedPhonemizer {
         private readonly string[] vowels = { "a", "an", "ax", "e", "eh", "en", "i", "in", "o", "oh", "on", "u", "un" };
         private readonly string[] consonants = { "b", "ch", "d", "dj", "f", "g", "h", "j", "k", "l", "lh", "m", "n", "nh", "p", "r", "rr", "rw", "s", "sh", "t", "v", "w", "x", "y", "z" };
+
+        private static readonly IG2p g2pEngine = new PortugueseG2p();
+        private static readonly Dictionary<string, string> phonemeMapping = new Dictionary<string, string> {
+            { "a~", "an" }, { "E", "eh" }, { "e~", "en" }, { "i~", "in" }, { "O", "oh" }, { "o~", "on" }, { "u~", "un" },
+            { "tS", "ch" }, { "dZ", "dj" }, { "X", "rr" }, { "R", "rr" }, { "Z", "j" }, { "L", "lh" }, { "J", "nh" }, { "S", "sh" },
+            { "w~", "w" }, { "j", "y" }, { "j~", "y" }
+        };
 
         private static readonly Dictionary<string, string> g2p = new Dictionary<string, string>();
 
@@ -50,93 +54,98 @@ namespace OpenUtau.Plugins {
             }
         }
 
-        public override Result Process(Note[] notes, Note? prev, Note? next, Note? prevNeighbour, Note? nextNeighbour, Note[] prevNeighbours) {
-            var lyric = notes[0].lyric.ToLower();
-            if (lyric == "+" && prevNeighbour != null) {
-                return new Result { phonemes = new Phoneme[0] };
+        protected override string[] GetVowels() => vowels;
+        protected override string[] GetConsonants() => consonants;
+        protected override string GetDictionaryName() => "";
+        protected override Dictionary<string, string> GetDictionaryPhonemesReplacement() => new Dictionary<string, string>();
+        protected override double GetTransitionBasicLengthMs(string alias = "") => 70.0;
+
+        protected override IG2p LoadBaseDictionary() {
+            return G2pDictionary.NewBuilder().Build();
+        }
+
+        protected override string[] GetSymbols(Note note) {
+            var lyric = note.lyric.ToLower();
+            if (g2p.ContainsKey(lyric)) {
+                return g2p[lyric].Split(' ', StringSplitOptions.RemoveEmptyEntries);
             }
+            var g2pResult = g2pEngine.Query(lyric);
+            if (g2pResult != null && g2pResult.Length > 0) {
+                return g2pResult.Select(p => phonemeMapping.ContainsKey(p) ? phonemeMapping[p] : p).ToArray();
+            }
+            return new string[] { lyric };
+        }
 
-            string phonemeStr = g2p.ContainsKey(lyric) ? g2p[lyric] : lyric;
-            var phonemeList = phonemeStr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            int tone = notes[0].tone;
+        protected override List<string> ProcessSyllable(Syllable syllable) {
+            var prevV = syllable.prevV;
+            var v = syllable.v;
+            var cc = syllable.cc;
+            var phonemes = new List<string>();
 
-            var result = new List<Phoneme>();
-            string prevV = string.Empty;
-
-            if (prevNeighbour != null) {
-                var prevLyric = prevNeighbour.Value.lyric.ToLower();
-                var prevPhonemeStr = g2p.ContainsKey(prevLyric) ? g2p[prevLyric] : prevLyric;
-                var prevPhonemes = prevPhonemeStr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var p in prevPhonemes.Reverse()) {
-                    if (vowels.Contains(p)) {
-                        prevV = p;
-                        break;
-                    }
+            if (syllable.IsStartingV) {
+                if (!TryAddPhoneme(phonemes, syllable.vowelTone, $"- {v}", v)) {
+                    phonemes.Add(v);
                 }
-            }
-
-            for (int i = 0; i < phonemeList.Length; i++) {
-                string current = phonemeList[i];
-                if (vowels.Contains(current)) {
-                    if (string.IsNullOrEmpty(prevV)) {
-                        string starter = $"- {current}";
-                        if (!singer.TryGetMappedOto(starter, tone, out _)) starter = $"-{current}";
-                        if (!singer.TryGetMappedOto(starter, tone, out _)) starter = current;
-                        result.Add(new Phoneme { phoneme = starter });
+            } else if (syllable.IsVV) {
+                if (!TryAddPhoneme(phonemes, syllable.vowelTone, $"{prevV} {v}", v)) {
+                    phonemes.Add(v);
+                }
+            } else if (syllable.IsStartingCV) {
+                // Try [- C1 C2 V]
+                var rccv = $"- {string.Join(" ", cc)} {v}";
+                if (HasOto(rccv, syllable.vowelTone)) {
+                    phonemes.Add(rccv);
+                } else {
+                    // Try [- C1 V] only if there is exactly one consonant.
+                    // For clusters (like "pra"), we prefer to decompose into [- p][p r][r a] 
+                    // instead of skipping "r" to use a "- pa" alias.
+                    var rcv = $"- {cc[0]} {v}";
+                    if (cc.Length == 1 && HasOto(rcv, syllable.vowelTone)) {
+                        phonemes.Add(rcv);
                     } else {
-                        string transition = $"{prevV} {current}";
-                        if (!singer.TryGetMappedOto(transition, tone, out _)) transition = current;
-                        result.Add(new Phoneme { phoneme = transition });
-                    }
-                    prevV = current;
-                } else if (consonants.Contains(current)) {
-                    string nextV = string.Empty;
-                    for (int j = i + 1; j < phonemeList.Length; j++) {
-                        if (vowels.Contains(phonemeList[j])) {
-                            nextV = phonemeList[j];
-                            break;
+                        // Start with [- C1]
+                        if (!TryAddPhoneme(phonemes, syllable.tone, $"- {cc[0]}", cc[0])) {
+                            phonemes.Add(cc[0]);
                         }
-                    }
-
-                    if (string.IsNullOrEmpty(prevV)) {
-                        string starter = string.IsNullOrEmpty(nextV) ? current : $"- {current} {nextV}";
-                        if (!singer.TryGetMappedOto(starter, tone, out _)) starter = $"-{current}{nextV}";
-                        if (!singer.TryGetMappedOto(starter, tone, out _)) starter = $"- {current}";
-                        if (!singer.TryGetMappedOto(starter, tone, out _)) starter = current;
-                        result.Add(new Phoneme { phoneme = starter });
-                    } else if (!string.IsNullOrEmpty(nextV)) {
-                        string vc = $"{prevV} {current}";
-                        if (singer.TryGetMappedOto(vc, tone, out var oto)) {
-                            result.Add(new Phoneme { phoneme = vc, position = -MsToTick(oto.Preutter) });
+                        // Chain clusters
+                        for (int i = 0; i < cc.Length - 1; i++) {
+                            TryAddPhoneme(phonemes, syllable.tone, $"{cc[i]} {cc[i + 1]}");
                         }
-
-                        string cv = $"{current} {nextV}";
-                        if (!singer.TryGetMappedOto(cv, tone, out _)) cv = $"{current}{nextV}";
-                        if (!singer.TryGetMappedOto(cv, tone, out _)) cv = nextV;
-                        result.Add(new Phoneme { phoneme = cv });
-                        i++;
-                        prevV = nextV;
-                    } else {
-                        string vc = $"{prevV} {current}";
-                        if (!singer.TryGetMappedOto(vc, tone, out _)) vc = $"{prevV}{current}";
-                        if (!singer.TryGetMappedOto(vc, tone, out _)) vc = current;
-                        result.Add(new Phoneme { phoneme = vc });
+                        // End with [Cn V]
+                        phonemes.Add($"{cc.Last()} {v}");
                     }
                 }
-            }
-
-            if (nextNeighbour == null) {
-                string lastPhoneme = phonemeList.Last();
-                if (vowels.Contains(lastPhoneme)) {
-                    string end = $"{lastPhoneme} -";
-                    if (!singer.TryGetMappedOto(end, tone, out _)) end = $"{lastPhoneme}-";
-                    if (singer.TryGetMappedOto(end, tone, out _)) {
-                        result.Add(new Phoneme { phoneme = end, position = 100 });
+            } else {
+                // VCV or VCCV
+                if (syllable.IsVCVWithOneConsonant) {
+                    TryAddPhoneme(phonemes, syllable.tone, $"{prevV} {cc[0]}");
+                    phonemes.Add($"{cc[0]} {v}");
+                } else {
+                    TryAddPhoneme(phonemes, syllable.tone, $"{prevV} {cc[0]}");
+                    for (int i = 0; i < cc.Length - 1; i++) {
+                        TryAddPhoneme(phonemes, syllable.tone, $"{cc[i]} {cc[i + 1]}");
                     }
+                    phonemes.Add($"{cc.Last()} {v}");
                 }
             }
+            return phonemes;
+        }
 
-            return new Result { phonemes = result.ToArray() };
+        protected override List<string> ProcessEnding(Ending ending) {
+            var prevV = ending.prevV;
+            var cc = ending.cc;
+            var phonemes = new List<string>();
+
+            if (ending.IsEndingV) {
+                TryAddPhoneme(phonemes, ending.tone, $"{prevV} -", $"{prevV}-");
+            } else {
+                TryAddPhoneme(phonemes, ending.tone, $"{prevV} {cc[0]}");
+                for (int i = 0; i < cc.Length - 1; i++) {
+                    TryAddPhoneme(phonemes, ending.tone, $"{cc[i]} {cc[i + 1]}");
+                }
+                TryAddPhoneme(phonemes, ending.tone, $"{cc.Last()} -", $"{cc.Last()}-");
+            }
+            return phonemes;
         }
     }
 }
